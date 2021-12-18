@@ -289,8 +289,11 @@ class TarFixer(object):
 
         for member in self.octal_members:
             # Convert octals to decimal
-            chunk_props[member] = int(chunk_props[member], 8)
-
+            if chunk_props[member]: # devmajors can be empty
+                chunk_props[member] = int(chunk_props[member], 8)
+            else:    
+                chunk_props[member] = 0
+                    
         # If there is no global header, we need to create one
         if self.need_header:
             # When run against a tree ID, git archive doesn't create

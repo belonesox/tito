@@ -75,6 +75,9 @@ class SubmoduleAwareBuilder(Builder):
         if not subdir:
             subdir = os.getcwd()
 
+        from pathlib import Path            
+        Path(dest_tar).parent.mkdir( parents=True, exist_ok=True )
+
         with chdir(subdir) as p:
             run_command(git_archive_cmd)
 
@@ -141,12 +144,24 @@ class SubmoduleAwareBuilder(Builder):
 
         # we need to append all of the submodule tar files onto the initial
         tarfiles = ' '.join(submodule_tar_files)
-        run_command("tar -Af %s" % tarfiles)
+        scmd = f"tar -n --concatenate --file {tarfiles}"
+        run_command(scmd)
+
+        initial_tar_dir = initial_tar + '.dir'
+        os.mkdir(initial_tar_dir)
+        initial_tar_fixed = initial_tar + '.fixed'
+        scmd = f'tar -ixf {initial_tar} -C {initial_tar_dir}'
+        run_command(scmd)
+        scmd = f'tar cf {initial_tar_fixed} -C {initial_tar_dir} {prefix}'
+        run_command(scmd)
+
+        # Sorry, I failed to write reliable oneliner to repack/fix incorrect tar with zeros, without unpacking to files on FS. Hope such magic line exists.
+        # scmd = f'tar -xif {initial_tar} | tar -cf {initial_tar_fixed} --warning=no-file-changed --warning=no-file-removed -T - '
 
         fixed_tar = "%s.tar" % basename
         fixed_tar_fh = open(fixed_tar, 'wb')
         try:
-            tarfixer = TarFixer(open(initial_tar, 'rb'), fixed_tar_fh, timestamp, commit)
+            tarfixer = TarFixer(open(initial_tar_fixed, 'rb'), fixed_tar_fh, timestamp, commit)
             tarfixer.fix()
         finally:
             fixed_tar_fh.close()
